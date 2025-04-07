@@ -17,6 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
+# Run setup_model.py to create the model
+RUN python setup_model.py
+
 # Expose the port the app runs on
 EXPOSE 8000
 

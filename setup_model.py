@@ -33,46 +33,43 @@ def download_file(url, filename):
         return False
 
 def setup_model():
-    """Set up the pre-trained model for plant disease detection."""
     print("Setting up the plant disease detection model...")
     
+    # Create models directory if it doesn't exist
+    os.makedirs("models", exist_ok=True)
+    
     try:
-        # Create models directory if it doesn't exist
-        os.makedirs('models', exist_ok=True)
-        
-        print("Loading base model...")
-        # Load MobileNetV2 as base model
-        base_model = MobileNetV2(weights='imagenet', include_top=False)
+        # Load the pre-trained MobileNetV2 model
+        print("Loading MobileNetV2...")
+        base_model = MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
         
         # Add custom layers
+        print("Adding custom layers...")
         x = base_model.output
         x = GlobalAveragePooling2D()(x)
         x = Dense(1024, activation='relu')(x)
-        predictions = Dense(38, activation='softmax')(x)  # 38 classes in PlantVillage dataset
+        predictions = Dense(38, activation='softmax')(x)  # 38 classes for plant diseases
         
         # Create the model
         model = Model(inputs=base_model.input, outputs=predictions)
         
         # Compile the model
-        model.compile(
-            optimizer='adam',
-            loss='categorical_crossentropy',
-            metrics=['accuracy']
-        )
+        print("Compiling model...")
+        model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
         
         # Save the model
-        model_path = os.path.join('models', 'plant_disease_model.h5')
-        model.save(model_path, include_optimizer=True)
+        print("Saving model...")
+        model.save('models/plant_disease_model.h5')
         
         print("Model setup completed successfully!")
-        print(f"Model saved to: {model_path}")
-        print(f"Model input shape: {model.input_shape}")
-        print(f"Model output shape: {model.output_shape}")
+        print(f"Model saved to: {os.path.abspath('models/plant_disease_model.h5')}")
         
-        return True
+        # Print model summary
+        model.summary()
+        
     except Exception as e:
         print(f"Error setting up model: {str(e)}")
-        return False
+        raise
 
 if __name__ == "__main__":
     setup_model() 
