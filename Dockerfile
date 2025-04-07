@@ -11,8 +11,10 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies with memory optimization
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir tensorflow-cpu==2.15.0 && \
+    pip cache purge
 
 # Copy the rest of the application
 COPY . .
@@ -20,8 +22,13 @@ COPY . .
 # Run setup_model.py to create the model
 RUN python setup_model.py
 
+# Set memory limits for TensorFlow
+ENV TF_FORCE_GPU_ALLOW_GROWTH=true
+ENV TF_CPP_MIN_LOG_LEVEL=2
+ENV TF_ENABLE_ONEDNN_OPTS=0
+
 # Expose the port the app runs on
 EXPOSE 8000
 
-# Command to run the application
+# Command to run the application with memory limits
 CMD ["python", "main.py"] 
