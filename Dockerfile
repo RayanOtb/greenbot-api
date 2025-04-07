@@ -22,10 +22,11 @@ COPY . .
 # Run setup_model.py to create the model
 RUN python setup_model.py
 
-# Set memory limits for TensorFlow
-ENV TF_FORCE_GPU_ALLOW_GROWTH=true
+# Set TensorFlow environment variables for CPU optimization
 ENV TF_CPP_MIN_LOG_LEVEL=2
 ENV TF_ENABLE_ONEDNN_OPTS=0
+ENV TF_FORCE_GPU_ALLOW_GROWTH=false
+ENV TF_XLA_FLAGS=--tf_xla_cpu_global_jit
 
 # Expose the port the app runs on
 EXPOSE 8000

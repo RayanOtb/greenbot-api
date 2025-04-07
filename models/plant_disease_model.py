@@ -12,8 +12,16 @@ from io import BytesIO
 import logging
 
 # Configure TensorFlow for memory optimization
-tf.config.set_soft_device_placement(True)
-tf.config.experimental.set_memory_growth(tf.config.list_physical_devices('CPU')[0], True)
+try:
+    # Only set memory growth if GPU is available
+    gpus = tf.config.list_physical_devices('GPU')
+    if gpus:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    # Set soft device placement for better compatibility
+    tf.config.set_soft_device_placement(True)
+except Exception as e:
+    logging.warning(f"Could not configure TensorFlow memory settings: {str(e)}")
 
 class PlantDiseaseModel:
     def __init__(self):
