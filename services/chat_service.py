@@ -1,6 +1,6 @@
 import os
-from openai import OpenAI
-from dotenv import load_dotenv
+import openai
+from typing import List, Dict, Any
 import logging
 import httpx
 
@@ -8,20 +8,21 @@ import httpx
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-load_dotenv()
-
 class ChatService:
     def __init__(self):
         """Initialize the chat service with OpenAI API key."""
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is not set")
-        
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
+            logging.warning("OPENAI_API_KEY not set. Chat functionality will be disabled.")
+            self.enabled = False
+            return
+            
+        self.enabled = True
         try:
             # Initialize OpenAI client with custom HTTP client
             http_client = httpx.Client(timeout=30.0)
-            self.client = OpenAI(
-                api_key=api_key,
+            self.client = openai.OpenAI(
+                api_key=self.api_key,
                 http_client=http_client
             )
             
@@ -36,8 +37,34 @@ class ChatService:
             
             logger.info("OpenAI client initialized successfully")
         except Exception as e:
-            logger.error(f"Error initializing OpenAI client: {str(e)}")
-            raise
+            logger.error(f"Failed to initialize OpenAI client: {str(e)}")
+            self.enabled = False
+
+    async def get_chat_response(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Get a response from the chat model."""
+        if not self.enabled:
+            return {
+                "error": "Chat service is disabled. Please set OPENAI_API_KEY environment variable.",
+                "response": "I'm sorry, but the chat functionality is currently unavailable. Please try again later."
+            }
+            
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=500
+            )
+            return {
+                "response": response.choices[0].message.content,
+                "error": None
+            }
+        except Exception as e:
+            logging.error(f"Error getting chat response: {str(e)}")
+            return {
+                "error": str(e),
+                "response": "I'm sorry, but I encountered an error while processing your request. Please try again later."
+            }
 
     async def get_response(self, message: str, language: str = "en") -> str:
         try:
