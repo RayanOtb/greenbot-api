@@ -69,7 +69,10 @@ async def root():
 async def analyze_image(file: UploadFile = File(...)):
     """Analyze an uploaded image for plant diseases."""
     try:
+        logger.info(f"Received image upload request: {file.filename}")
+        
         if not file.content_type.startswith('image/'):
+            logger.error(f"Invalid file type: {file.content_type}")
             raise HTTPException(status_code=400, detail="File must be an image")
         
         # Save the uploaded file temporarily
@@ -78,16 +81,23 @@ async def analyze_image(file: UploadFile = File(...)):
             with open(temp_path, "wb") as buffer:
                 content = await file.read()
                 buffer.write(content)
+                logger.info(f"Temporary file created: {temp_path}")
             
             # Analyze the image
+            logger.info("Starting image analysis...")
             result = plant_model.analyze_image(temp_path)
+            logger.info("Image analysis completed successfully")
             return result
+        except Exception as e:
+            logger.error(f"Error during image analysis: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
         finally:
             # Clean up the temporary file
             if os.path.exists(temp_path):
                 os.remove(temp_path)
+                logger.info(f"Temporary file removed: {temp_path}")
     except Exception as e:
-        logger.error(f"Error analyzing image: {str(e)}")
+        logger.error(f"Error in analyze_image endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/chat")

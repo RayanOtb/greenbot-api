@@ -4,7 +4,7 @@ import os
 from typing import Dict, List, Tuple
 import json
 import tensorflow as tf
-from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from tensorflow.keras.models import Model
 import requests
@@ -63,16 +63,40 @@ class PlantDiseaseModel:
             'Potato___Early_blight', 'Potato___Late_blight', 'Potato___healthy',
             'Tomato___Bacterial_spot', 'Tomato___Early_blight', 'Tomato___Late_blight', 'Tomato___Leaf_Mold',
             'Tomato___Septoria_leaf_spot', 'Tomato___Spider_mites', 'Tomato___Target_Spot',
-            'Tomato___Tomato_Yellow_Leaf_Curl_Virus', 'Tomato___Tomato_mosaic_virus', 'Tomato___healthy'
+            'Tomato___Tomato_Yellow_Leaf_Curl_Virus', 'Tomato___Tomato_mosaic_virus', 'Tomato___healthy',
+            # Additional classes to match the model's 38 classes
+            'Pepper,_bell___Bacterial_spot', 'Pepper,_bell___healthy',
+            'Squash___Powdery_mildew', 'Squash___healthy',
+            'Strawberry___Leaf_scorch', 'Strawberry___healthy',
+            'Peach___Bacterial_spot', 'Peach___healthy',
+            'Cherry_(including_sour)___Powdery_mildew', 'Cherry_(including_sour)___healthy',
+            'Blueberry___healthy',
+            'Raspberry___healthy',
+            'Soybean___healthy'
         ]
         
     def _preprocess_image(self, image_path):
         """Preprocess the image for model input."""
         try:
+            # Open and convert image to RGB
             img = Image.open(image_path)
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            # Resize image
             img = img.resize((224, 224))
-            img_array = np.array(img) / 255.0
+            
+            # Convert to numpy array and normalize
+            img_array = np.array(img, dtype=np.float32)
+            img_array = img_array / 255.0
+            
+            # Add batch dimension
             img_array = np.expand_dims(img_array, axis=0)
+            
+            logging.info(f"Preprocessed image shape: {img_array.shape}")
+            logging.info(f"Preprocessed image dtype: {img_array.dtype}")
+            logging.info(f"Preprocessed image min/max: {img_array.min()}/{img_array.max()}")
+            
             return img_array
         except Exception as e:
             logging.error(f"Error preprocessing image: {str(e)}")
@@ -81,18 +105,41 @@ class PlantDiseaseModel:
     def analyze_image(self, image_path):
         """Analyze an image for plant diseases."""
         try:
+            logging.info(f"Starting image analysis for: {image_path}")
+            
             # Preprocess the image
+            logging.info("Preprocessing image...")
             processed_image = self._preprocess_image(image_path)
+            logging.info(f"Image preprocessed. Shape: {processed_image.shape}")
             
             # Make prediction
+            logging.info("Making prediction...")
             predictions = self.model.predict(processed_image, verbose=0)
+            logging.info(f"Prediction shape: {predictions.shape}")
+            logging.info(f"Raw predictions: {predictions}")
+            
+            # Check if predictions are valid
+            if len(predictions) == 0 or len(predictions[0]) == 0:
+                raise ValueError("Model returned empty predictions")
+            
+            # Log the number of classes
+            num_classes = len(predictions[0])
+            logging.info(f"Number of classes in predictions: {num_classes}")
+            logging.info(f"Number of class names: {len(self.class_names)}")
+            
+            # Check if the number of classes matches
+            if num_classes != len(self.class_names):
+                raise ValueError(f"Number of classes in predictions ({num_classes}) does not match number of class names ({len(self.class_names)})")
+            
             predicted_class = np.argmax(predictions[0])
             confidence = float(predictions[0][predicted_class])
+            logging.info(f"Predicted class index: {predicted_class}, Confidence: {confidence}")
             
             # Get class name and parse plant type and disease
             class_name = self.class_names[predicted_class]
             plant_type = class_name.split('___')[0].lower()
             disease = class_name.split('___')[1].lower() if '___' in class_name else 'healthy'
+            logging.info(f"Class name: {class_name}, Plant type: {plant_type}, Disease: {disease}")
             
             # Get top 3 predictions
             top_k = 3
@@ -101,6 +148,7 @@ class PlantDiseaseModel:
                 self.class_names[i]: float(predictions[0][i])
                 for i in top_indices
             }
+            logging.info(f"Top predictions: {top_predictions}")
             
             # Get disease details if applicable
             disease_details = {}
@@ -120,10 +168,14 @@ class PlantDiseaseModel:
                 "recommendations": self._generate_recommendations(plant_type, disease, confidence)
             }
             
+            logging.info("Analysis completed successfully")
             return result
             
         except Exception as e:
             logging.error(f"Error analyzing image: {str(e)}")
+            logging.error(f"Error type: {type(e)}")
+            import traceback
+            logging.error(f"Traceback: {traceback.format_exc()}")
             raise
 
     def _get_analysis_quality(self, confidence: float) -> str:
