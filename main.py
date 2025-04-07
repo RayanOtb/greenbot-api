@@ -14,7 +14,10 @@ import logging
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -44,10 +47,10 @@ except Exception as e:
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with your frontend URL
+    allow_origins=["*"],  # Allows all origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 @app.get("/")
@@ -62,8 +65,9 @@ async def root():
         }
     }
 
-@app.post("/analyze-image")
+@app.post("/analyze")
 async def analyze_image(file: UploadFile = File(...)):
+    """Analyze an uploaded image for plant diseases."""
     try:
         if not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File must be an image")
@@ -112,6 +116,6 @@ async def chat(message: str, language: str = "en"):
 
 if __name__ == "__main__":
     # Get port from environment variable or use default
-    port = int(os.getenv("PORT", 8000))
-    # Run the server
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True) 
+    port = int(os.getenv("PORT", "8080"))
+    logger.info(f"Starting server on port {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port) 

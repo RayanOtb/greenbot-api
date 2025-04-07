@@ -29,7 +29,7 @@ ENV TF_FORCE_GPU_ALLOW_GROWTH=false
 ENV TF_XLA_FLAGS=--tf_xla_cpu_global_jit
 
 # Expose the port the app runs on
-EXPOSE 8000
+EXPOSE 8080
 
 # Command to run the application with memory limits
 CMD ["python", "main.py"] 
