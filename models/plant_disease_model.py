@@ -89,14 +89,35 @@ class PlantDiseaseModel:
             predicted_class = np.argmax(predictions[0])
             confidence = float(predictions[0][predicted_class])
             
-            # Get class name
+            # Get class name and parse plant type and disease
             class_name = self.class_names[predicted_class]
+            plant_type = class_name.split('___')[0].lower()
+            disease = class_name.split('___')[1].lower() if '___' in class_name else 'healthy'
+            
+            # Get top 3 predictions
+            top_k = 3
+            top_indices = np.argsort(predictions[0])[-top_k:][::-1]
+            top_predictions = {
+                self.class_names[i]: float(predictions[0][i])
+                for i in top_indices
+            }
+            
+            # Get disease details if applicable
+            disease_details = {}
+            if disease != 'healthy':
+                disease_details = self.get_disease_details(plant_type, disease)
             
             # Format the result
             result = {
                 "class": class_name,
                 "confidence": confidence,
-                "disease": "healthy" not in class_name.lower()
+                "disease": "healthy" not in class_name.lower(),
+                "plant_type": plant_type,
+                "disease_name": disease,
+                "top_predictions": top_predictions,
+                "disease_details": disease_details,
+                "analysis_quality": self._get_analysis_quality(confidence),
+                "recommendations": self._generate_recommendations(plant_type, disease, confidence)
             }
             
             return result
@@ -104,6 +125,41 @@ class PlantDiseaseModel:
         except Exception as e:
             logging.error(f"Error analyzing image: {str(e)}")
             raise
+
+    def _get_analysis_quality(self, confidence: float) -> str:
+        """Determine the quality of the analysis based on confidence score."""
+        if confidence >= 0.9:
+            return "high"
+        elif confidence >= 0.7:
+            return "medium"
+        else:
+            return "low"
+
+    def _generate_recommendations(self, plant_type: str, disease: str, confidence: float) -> List[str]:
+        """Generate recommendations based on the analysis results."""
+        recommendations = []
+        
+        # Add confidence-based recommendations
+        if confidence < 0.7:
+            recommendations.append("Consider taking additional photos from different angles for more accurate analysis.")
+            recommendations.append("Ensure the photo is well-lit and focused on the affected area.")
+        
+        # Add disease-specific recommendations
+        if disease != 'healthy':
+            disease_info = self.get_disease_details(plant_type, disease)
+            if disease_info:
+                recommendations.extend(disease_info.get('treatment', []))
+                recommendations.extend(disease_info.get('prevention', []))
+        else:
+            recommendations.extend([
+                "Continue regular plant care routine",
+                "Maintain proper watering schedule",
+                "Ensure adequate sunlight exposure",
+                "Monitor for any changes in plant health",
+                "Keep up with regular fertilization"
+            ])
+        
+        return recommendations
 
     def get_disease_details(self, plant_type: str, disease: str) -> Dict:
         """
